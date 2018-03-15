@@ -108,7 +108,7 @@ int main()
 	// SET PROBABILITY
 
 	solve.push_constraints(constreaints_additional);
-	solve.set_probability(100);
+	solve.set_probability(50);
 
 	// END 
 

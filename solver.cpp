@@ -5,11 +5,9 @@ Solver::Solver()
 	solved = false;
 	w_ac = false;
 	w_mac = false;
-
-
-
 	turn = 0;
-	_probability = 0; // 0 never insert, 100 always insert
+	// 0 never insert, 100 always insert
+	_probability = 0; 
 	srand(time(NULL));
  }
 
@@ -135,7 +133,7 @@ int Solver::get_assignment(std::vector<_variable> vars, int x)
 // credit "Artificial Intellegence: A modern approach"//
 // Additional ability to return false if domain of any variable is exhousted
 // preventin needless backtrack search... 
-bool Solver::ac(std::vector<_variable>& vars, std::vector<_constraint_touple> constraints)
+bool Solver::ac(std::vector<_variable>& vars, std::vector<_constraint_touple>& constraints)
 {
 	std::queue<_constraint_touple> contraints_queue;
 	_constraint_touple temp;
@@ -166,7 +164,7 @@ bool Solver::ac(std::vector<_variable>& vars, std::vector<_constraint_touple> co
 		temp_pos_x = variable_position(vars, temp.x.var);
 		temp_pos_y = variable_position(vars, temp.y.var);
 
-		if (revise(temp, vars[temp_pos_x], vars[temp_pos_y]))
+		if (revise(constraints, temp, vars[temp_pos_x], vars[temp_pos_y]))
 		{
 			if (vars[temp_pos_x].domain.size() == 0)
 			{
@@ -197,7 +195,7 @@ bool Solver::ac(std::vector<_variable>& vars, std::vector<_constraint_touple> co
 }
 
 // Based on ac3 concentrated on current assignmed variable
-bool Solver::fla(int var_position, std::vector<_variable>& vars, std::vector<_constraint_touple> constraints)
+bool Solver::fla(int var_position, std::vector<_variable>& vars, std::vector<_constraint_touple>& constraints)
 {
 	std::queue<_constraint_touple> contraints_queue;
 	_constraint_touple temp;
@@ -234,7 +232,7 @@ bool Solver::fla(int var_position, std::vector<_variable>& vars, std::vector<_co
 		temp_pos_x = variable_position(vars, temp.x.var);
 		temp_pos_y = variable_position(vars, temp.y.var);
 
-		if (revise(temp, vars[temp_pos_x], vars[temp_pos_y]))
+		if (revise(constraints, temp, vars[temp_pos_x], vars[temp_pos_y]))
 		{
 			if (vars[temp_pos_x].domain.size() == 0)
 			{
@@ -265,7 +263,7 @@ bool Solver::fla(int var_position, std::vector<_variable>& vars, std::vector<_co
 }
 
 // Based on ac3 concentrated on current assignmed variable
-bool Solver::pla(int var_position, std::vector<_variable>& vars, std::vector<_constraint_touple> constraints)
+bool Solver::pla(int var_position, std::vector<_variable>& vars, std::vector<_constraint_touple>& constraints)
 {
 	std::queue<_constraint_touple> contraints_queue;
 	_constraint_touple temp;
@@ -291,7 +289,7 @@ bool Solver::pla(int var_position, std::vector<_variable>& vars, std::vector<_co
 		temp_pos_x = variable_position(vars, temp.x.var);
 		temp_pos_y = variable_position(vars, temp.y.var);
 
-		if (revise(temp, vars[temp_pos_x], vars[temp_pos_y]))
+		if (revise(constraints, temp, vars[temp_pos_x], vars[temp_pos_y]))
 		{
 			if (vars[temp_pos_x].domain.size() == 0)
 			{
@@ -315,7 +313,7 @@ bool Solver::pla(int var_position, std::vector<_variable>& vars, std::vector<_co
 // Algorithm:
 // given xi, this function checks if there exists any value in dj such that
 // (xi, dj) satesfies the constraint, if there isn't, remove xi from domain. 
-bool Solver::revise(_constraint_touple touple, _variable& xi, _variable& xj)
+bool Solver::revise(std::vector<_constraint_touple>& constraints, _constraint_touple touple, _variable& xi, _variable& xj)
 {
 	bool revised = false;
 	unsigned int unsatasfied;
@@ -338,9 +336,16 @@ bool Solver::revise(_constraint_touple touple, _variable& xi, _variable& xj)
 		}
 		if (unsatasfied == xj.domain.size())
 		{
+			// store domain to be erased 
+			set_deleating_constraint(constraints, touple, xi, xi.domain[i]);
+
+			// erase
 			xi.domain.erase(xi.domain.begin() + i);
-			i--;
+			
+			i--;	
+			
 			revised = true;
+			
 		}
 
 	}
@@ -366,16 +371,12 @@ int Solver::variable_position(std::vector<_variable> vars, int variable)
 void Solver::add_constraints(std::vector<_constraint_touple>& constraints, std::vector<_variable>& vars)
 {
 	int rnumber = rand() % 100; // number between 0 and 100
-	std::cout << rnumber << " " << _probability << " " << !new_constraints.empty() << std::endl;
-	bool istrue = (rnumber < _probability) && !new_constraints.empty();
 	
-	std::cout << "IS TRUE : " << istrue << std::endl;
 	if ((rnumber < _probability) && !new_constraints.empty())	// if we want to insert multiple, then change if to while( rnumber < _probavilty )
 	{
-		std::cout << "ADDED CONSTRAINT \n";
 		_constraint_touple new_constraint = new_constraints.front();
 		new_constraints.pop();
-	
+		
 		int varx = new_constraint.x.var;
 		int vary = new_constraint.y.var;
 
@@ -529,8 +530,11 @@ bool Solver::backtrack(std::vector<_variable> vars, std::vector<_constraint_toup
 	
 	
 	
-	add_constraints(touples, vars);
+	//add_constraints(touples, vars);
 
+	remove_constraints(touples);
+	
+	restore_domain(vars);
 
 
 
@@ -588,6 +592,7 @@ bool Solver::backtrack(std::vector<_variable> vars, std::vector<_constraint_toup
 }
 
 
+// additional constraints to be added during runtime
 void Solver::push_constraints(std::vector<_constraint_touple> constraints)
 {
 	for (unsigned int i = 0; i < constraints.size(); i++)
@@ -596,7 +601,106 @@ void Solver::push_constraints(std::vector<_constraint_touple> constraints)
 	}
 }
 
+// probability of adding/removing constraint when 
+// add_constraint && remove constraint are ran
 void Solver::set_probability(int probavility)
 {
 	_probability = probavility;
+}
+
+
+
+
+void Solver::remove_constraints(std::vector<_constraint_touple> & constraints)
+{
+	
+	int rnumber = rand() % 100;
+
+	if (rnumber < _probability)
+	{
+		
+		// Select radnom position
+		int remove_position = rand() % constraints.size();
+
+		printf("REMOVED: %d %d\n", constraints[remove_position].x.var, constraints[remove_position].y.var);
+
+		// Copy removed domains structure
+		for (unsigned int i = 0; i < constraints[remove_position].deleted_domain.size(); i++)
+		{
+			reactivated_domains.push_back(constraints[remove_position].deleted_domain[i]);
+		}
+
+		// Remove constraint
+		constraints.erase(constraints.begin() + remove_position);
+	}
+}
+
+
+void Solver::restore_domain(std::vector<_variable>& vars)
+{
+	
+	printf("IM HERE %d\n", reactivated_domains.size());
+	int restore_var_position;
+	std::vector<int>::iterator exists;
+
+
+	for (unsigned int i = 0; i < reactivated_domains.size(); i++)
+	{
+		restore_var_position = variable_position(vars, reactivated_domains[i].var);
+		printf("Checking variable: %d\n", restore_var_position);
+
+		for (unsigned int j = 0; j < reactivated_domains[i].domain.size(); j++)
+		{
+			
+			exists = std::find(vars[restore_var_position].domain.begin(), vars[restore_var_position].domain.begin(), reactivated_domains[i].domain[j]);
+			
+			if (exists != vars[restore_var_position].domain.end())
+			{
+				printf("RESTORING VARIABLE: %d, DOMAIN %d", vars[restore_var_position].var, reactivated_domains[i].domain[j]);
+				vars[restore_var_position].domain.push_back(reactivated_domains[i].domain[j]);
+			}
+			
+			
+		}
+	}
+
+}
+
+
+void Solver::set_deleating_constraint(std::vector<_constraint_touple>& constraints, _constraint_touple this_constraint, _variable var, int domain_member)
+{
+	
+	std::vector<int>::iterator exists;
+	bool found = false;
+	// find matching constraint
+	for (unsigned int i = 0; i < constraints.size(); i++)
+	{
+		// check if current constraint is this_constraint
+		if ((constraints[i].x.var == this_constraint.x.var) && (constraints[i].y.var == this_constraint.y.var))
+		{
+			// check if this constraint already removed a value from this variables domain
+			for (unsigned int j = 0; j < constraints[i].deleted_domain.size(); i++)
+			{
+				if (constraints[i].deleted_domain[j].var == var.var)
+				{
+					found = true;
+					printf("ADDED TO RESTORED (existing): constraint: %d %d , variable: %d, domain: %d \n", constraints[i].x.var, constraints[i].y.var, var.var, domain_member);
+					constraints[i].deleted_domain[j].domain.push_back(domain_member);
+					break;
+				}
+			}
+			
+			// constraint has not removed any values from this variable, create whole new
+			// _deleated_domains strt and push
+			if (!found)
+			{
+				printf("ADDED TO RESTORED (new): constraint: %d %d , variable: %d, domain: %d \n", constraints[i].x.var, constraints[i].y.var, var.var, domain_member);
+				_deleted_domains new_deleated;
+				new_deleated.var = var.var;
+				new_deleated.domain.push_back(domain_member);
+				reactivated_domains.push_back(new_deleated);
+			}
+			break;
+		}
+	}
 }

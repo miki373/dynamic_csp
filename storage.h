@@ -25,6 +25,12 @@ struct _variable
 	std::vector<int> domain;
 };
 
+struct _deleted_domains
+{
+	int var;
+	std::vector<int> domain;
+};
+
 // This container holds two variables (x and y) and constraints between them
 // Constraints are stored inside an array 
 struct _constraint_touple
@@ -32,6 +38,7 @@ struct _constraint_touple
 	_variable x;
 	_variable y;
 	std::vector<_constraint_values> constraints;
+	std::vector<_deleted_domains> deleted_domain;
 };
 
 
